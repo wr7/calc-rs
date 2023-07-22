@@ -1,0 +1,5 @@
+[build]
+target = "thumbv6m-none-eabi"
+rustflags = ["-C", "target-cpu=cortex-m0", "-C", "link-arg=--script=./linker.ld"]
+panic="abort"
+
