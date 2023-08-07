@@ -7,3 +7,6 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# stm32f0xx = {path = "../stm32f0xx", features = ["rt"]}
+cortex-m-rt = "0.7.3"
+stm-util = {path = "../stm-util"}

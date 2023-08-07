@@ -1,0 +1,35 @@
+pg 581
+
+I2C2 = 0x4000_5800
+
+I2C port 2
+PIN 26 (PB13) SCL (AF5)
+PIN 27 (PB14) SDA (AF5)
+
+0. Reset I2C2?
+
+1. Enable port B
+
+2. Set SCL and SDA to alternate function, low speed, open drain, pull up
+	
+3. Set alternate function for SDA and SCL to AF5
+	
+4. Set I2C_TIMINGR @ (I2C2 + 0x10) to 0x1_0_4_2_0F_13
+
+5. Set bit RCC_APB1ENR[22] @ RCC + 0x1C to enable I2C2 clock
+
+
+PRESC = 0x1
+SCLDEL = 0x4
+SDADEL = 0x2
+SCLH = 0x0F
+SCLL = 0x13
+
+corresponding TIMINGR:
+0x1_0_4_2_0F_13
+
+target I2C speed: 100kHz
+
+I2CCLK = 8MHz (make sure to prescale down to 2MHz)
+
+// 

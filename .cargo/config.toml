@@ -1,5 +1,10 @@
 [build]
 target = "thumbv6m-none-eabi"
-rustflags = ["-C", "target-cpu=cortex-m0", "-C", "link-arg=--script=./linker.ld"]
+rustflags = ["-C", "target-cpu=cortex-m0", "-C", "link-arg=-Tlink.x"]
 panic="abort"
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+panic = "abort"
 
