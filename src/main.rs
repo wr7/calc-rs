@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+// TODO: make a delay between i2c packets so that the MCU doesn't pull SCL low indefinitely
+
 use core::{
     iter,
     panic::PanicInfo,
@@ -9,13 +11,13 @@ use core::{
 
 use cortex_m_rt::entry;
 use stm_util::{
+    address,
     gpio::{GPIOConfiguration, GPIOPin, GPIOPort, PinSpeed, PinType, PullUpPullDownResistor},
     i2c,
 };
 
 #[no_mangle]
 #[link_section = ".bss"]
-#[export_name = "counter"]
 static mut COUNTER: u32 = 0;
 
 #[panic_handler]
@@ -89,128 +91,27 @@ fn main() -> ! {
         PullUpPullDownResistor::None,
     ));
 
-    psuedo_wait(); // The little dinky screen needs time for it to power on
+    LED_PIN.set(false);
 
-    i2c::initialize_i2c2();
-    // i2c::i2c_send(LED_PIN, 0b0111100, [0b11000000, 0b11111111]);
+    let mut i2c2 = unsafe { i2c::initialize_i2c2() };
+
+    // i2c::initialize_i2c2();
+
+    psuedo_wait(); // The screen needs time to turn on
 
     let mut err = false;
 
-    // err |= !i2c::i2c_send(0b0111100, [0, 0xe3, 0xae, 0xa8, 31, 0xa5, 0xaf, 0xe3]);
-    // err |= !i2c::i2c_send(
-    //     0b0111100,
-    //     [
-    //         0,
-    //         consts::DISPLAYOFF,
-    //         consts::SETDISPLAYCLOCKDIV,
-    //         0x80,
-    //         consts::SETMULTIPLEX,
-    //         31,
-    //         consts::SETDISPLAYOFFSET,
-    //         consts::SETSTARTLINE,
-    //         consts::CHARGEPUMP,
-    //         0x14,
-    //         consts::SETVCOMDETECT,
-    //         0x40,
-    //         consts::DISPLAYALLON,
-    //         consts::NORMALDISPLAY,
-    //         consts::DEACTIVATE_SCROLL,
-    //         consts::DISPLAYON,
-    //     ],
-    // );
+    const I2C2_ISR: *mut u32 = (address::I2C2 + 0x18) as _;
 
-    // err |= !i2c::i2c_send(
-    //     0b0111100,
-    //     [
-    //         0,    // command stream mode
-    //         0xae, // reset display
-    //         0xa8, 31,   // set screen height to 31px
-    //         0xa5, // entire display on
-    //         0x8d, 0x14, // enable charge pump`
-    //         0xaf, // turn on display
-    //     ],
-    // );
+    let test_packet = [0x00, 0xae, 0xa5, 0x8d, 0x14, 0xaf];
 
-    // let commands = [
-    //     0xae, // reset display
-    //     0xa8, 31, // set mux
-    //     0xd3, 0,    // set display offset
-    //     0x40, // set start line
-    //     0xa0, // set segment remap
-    //     0xc0, // set COM scan direction
-    //     0xda, 0x02, // set COM hardware configuration
-    //     0x81, 0x7f, // set contrast
-    //     0xa5, // set screen to on
-    //     0xd5, 0x80, // set oscillator frequency
-    //     0x8d, 0x14, // enable charge pump
-    //     0xaf, // turn on screen
-    // ];
-
-    // for command in commands {
-    //     err |= !i2c::i2c_send(0b0111100, [0, command]);
-    // }
-
-    // err |= !i2c::i2c_send(
-    //     0b0111100,
-    //     iter::once(0x40).chain(.take(129),
-    // );
-
-    // err |= !i2c::i2c_send(
-    //     0b0111100,
-    //     [
-    //         0,    // command stream mode
-    //         0xae, // reset display
-    //         0xa8, 31, // set mux
-    //         0xd3, 0,    // set display offset
-    //         0x40, // set start line
-    //         0xa0, // set segment remap
-    //         0xc0, // set COM scan direction
-    //         0xda, 0x02, // set COM hardware configuration
-    //         0x81, 0x7f, // set contrast
-    //         0xa5, // set screen to on
-    //         0xd5, 0x80, // set oscillator frequency
-    //         0x8d, 0x14, // enable charge pump
-    //         0xaf, // turn on screen
-    //     ],
-    // );
-
-    err |= !i2c::i2c_send(0b0111100, [0, 0xae, 0xe3]);
-    err |= !i2c::i2c_send(0b0111100, [0, 0xe3]);
-
-    // err |= !i2c::i2c_send(0b0111100, [0b01000000, 0xFF, 0xFF, 0xFF, 0xFF]);
-    // err |= !i2c::i2c_send(0b0111100, [0b10000000, 0b10100100]);
+    err |= !i2c2.send_data(0x3c, test_packet);
 
     if !err {
         LED_PIN.set(true);
+    } else {
+        // LED_PIN.set(true);
     }
 
-    // LED_PIN.set(true);
-
-    // i2c::i2c_send(LED_PIN, 0b0111100, [0b10000000, 0b10100100]);
-
-    // i2c::i2c_send(LED_PIN, 0b0101101, [0b10000000, 0b10100101]);
-
-    // LED_PIN.set(true);
-
-    // let mut counter_val = 0;
-    // let mut state = true;
-
-    // loop {
-    //     unsafe {
-    //         if counter_val == 0 {
-    //             LED_PIN.set(state);
-    //             state = !state;
-    //         }
-
-    //         let counter_addr = addr_of_mut!(COUNTER);
-    //         counter_val += 1;
-
-    //         ptr::write_volatile(counter_addr, counter_val);
-
-    //         if counter_val == 1_000_000 {
-    //             counter_val = 0;
-    //         }
-    //     }
-    // }
     loop {}
 }
