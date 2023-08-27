@@ -10,3 +10,11 @@ build = "build.rs"
 # stm32f0xx = {path = "../stm32f0xx", features = ["rt"]}
 cortex-m-rt = "0.7.3"
 stm-util = {path = "../stm-util"}
+bitmap32 = {path = "../bitmap32", default-features=false}
+calc-alloc = {path = "../calc-alloc"}
+calc = {path = "../calc"}
+calc-common = {path = "../calc-common"}
+
+[profile.release]
+opt-level = "z"
+lto = "fat"

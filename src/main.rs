@@ -9,12 +9,19 @@ use core::{
     ptr::{self, addr_of_mut},
 };
 
+use bitmap32::BitMap;
+use calc::CalculatorState;
+use calc_alloc::B64Allocator;
+use calc_common::{Character, MetaButton};
 use cortex_m_rt::entry;
 use stm_util::{
     address,
     gpio::{GPIOConfiguration, GPIOPin, GPIOPort, PinSpeed, PinType, PullUpPullDownResistor},
-    i2c,
+    i2c::{self, I2C2},
 };
+
+#[global_allocator]
+static ALLOCATOR: B64Allocator<32> = B64Allocator::new();
 
 #[no_mangle]
 #[link_section = ".bss"]
@@ -101,11 +108,66 @@ fn main() -> ! {
 
     let mut err = false;
 
-    const I2C2_ISR: *mut u32 = (address::I2C2 + 0x18) as _;
+    let alt_init_packet = [
+        0x00, // command stream mode
+        0xa8, 0x3f, 0xd3, 0x00, // set display offset
+        0x40, // set start line
+        0xa0, // set segment remap
+        0xc0, // set com output scan direction
+        0xda, 0x12, // set com pin hardware configuration
+        0x81, 0x7f, // set contrast
+        0xa4, // read contents from ram
+        0xd5, 0x80, // set oscillator frequency
+        0x8d, 0x14, // enable charge pump
+        0xaf, // turn on display
+    ];
 
-    let test_packet = [0x00, 0xae, 0xa5, 0x8d, 0x14, 0xaf];
+    err |= !i2c2.send_data(0x3c, alt_init_packet);
 
-    err |= !i2c2.send_data(0x3c, test_packet);
+    let mut state = CalculatorState::default();
+    err |= !update_screen(&mut i2c2, &state.screen);
+    psuedo_wait();
+
+    let buttons = [
+        Character::Nine.into(),
+        Character::Plus.into(),
+        Character::Five.into(),
+        Character::Multiply.into(),
+        Character::OpenParen.into(),
+        Character::Three.into(),
+        Character::Plus.into(),
+        Character::Two.into(),
+        Character::CloseParen.into(),
+        MetaButton::Enter.into(),
+    ];
+
+    for button in buttons {
+        state.on_button_press(button);
+        err |= !update_screen(&mut i2c2, &state.screen);
+        // psuedo_wait();
+    }
+
+    // state.on_button_press(Character::Nine.into());
+    // err |= !update_screen(&mut i2c2, &state.screen);
+    // psuedo_wait();
+
+    // state.on_button_press(Character::Plus.into());
+    // err |= !update_screen(&mut i2c2, &state.screen);
+    // psuedo_wait();
+
+    // state.on_button_press(Character::Five.into());
+    // err |= !update_screen(&mut i2c2, &state.screen);
+    // psuedo_wait();
+
+    // state.on_button_press(Character::Zero.into());
+    // err |= !update_screen(&mut i2c2, &state.screen);
+    // psuedo_wait();
+
+    // state.on_button_press(calc::Button::Enter);
+    // err |= !update_screen(&mut i2c2, &state.screen);
+    // psuedo_wait();
+
+    // err |= !update_screen(&mut i2c2, &stest::test_map);
 
     if !err {
         LED_PIN.set(true);
@@ -114,4 +176,29 @@ fn main() -> ! {
     }
 
     loop {}
+}
+
+pub fn update_screen(i2c2: &mut I2C2, buffer: &BitMap<u32, 256>) -> bool {
+    let mut err = false;
+
+    for page in 0..8 {
+        err |= !i2c2.send_data(0x3c, [0x00, 0xb0 | page as u8, 0x00, 0x10]);
+        if let Some(mut frame) = i2c2.start_frame(0x3c, 0x40) {
+            err |= !frame.transmit(0);
+            err |= !frame.transmit(0);
+
+            for column in 0..128 {
+                let u32_index = column * 2 + page / 4;
+                let byte_index = page % 4;
+
+                frame.transmit(buffer.0[u32_index].to_be_bytes()[byte_index].reverse_bits());
+            }
+
+            frame.stop();
+        } else {
+            err = true;
+        }
+    }
+
+    !err
 }

@@ -3,9 +3,44 @@
 version = 3
 
 [[package]]
+name = "bitmap32"
+version = "0.1.0"
+
+[[package]]
+name = "calc"
+version = "0.1.0"
+dependencies = [
+ "bitmap32",
+ "calc-common",
+ "calc-parser",
+]
+
+[[package]]
+name = "calc-alloc"
+version = "0.1.0"
+dependencies = [
+ "bitmap32",
+]
+
+[[package]]
+name = "calc-common"
+version = "0.1.0"
+
+[[package]]
+name = "calc-parser"
+version = "0.1.0"
+dependencies = [
+ "calc-common",
+]
+
+[[package]]
 name = "calc-rs"
 version = "0.1.0"
 dependencies = [
+ "bitmap32",
+ "calc",
+ "calc-alloc",
+ "calc-common",
  "cortex-m-rt",
  "stm-util",
 ]
