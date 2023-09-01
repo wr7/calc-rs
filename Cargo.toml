@@ -14,6 +14,7 @@ bitmap32 = {path = "../bitmap32", default-features=false}
 calc-alloc = {path = "../calc-alloc"}
 calc = {path = "../calc"}
 calc-common = {path = "../calc-common"}
+calc-keyboard = {path = "../calc-keyboard"}
 
 [profile.release]
 opt-level = "z"

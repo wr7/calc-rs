@@ -27,6 +27,13 @@ name = "calc-common"
 version = "0.1.0"
 
 [[package]]
+name = "calc-keyboard"
+version = "0.1.0"
+dependencies = [
+ "calc-common",
+]
+
+[[package]]
 name = "calc-parser"
 version = "0.1.0"
 dependencies = [
@@ -41,6 +48,7 @@ dependencies = [
  "calc",
  "calc-alloc",
  "calc-common",
+ "calc-keyboard",
  "cortex-m-rt",
  "stm-util",
 ]
