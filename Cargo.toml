@@ -8,7 +8,7 @@ build = "build.rs"
 
 [dependencies]
 # stm32f0xx = {path = "../stm32f0xx", features = ["rt"]}
-cortex-m-rt = "0.7.3"
+cortex-m-rt = {version = "0.7.3", features = ["device"]}
 stm-util = {path = "../stm-util"}
 bitmap32 = {path = "../bitmap32", default-features=false}
 calc-alloc = {path = "../calc-alloc"}

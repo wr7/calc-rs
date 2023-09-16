@@ -1,37 +1,31 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
 // TODO: make a delay between i2c packets so that the MCU doesn't pull SCL low indefinitely
 
-use core::{
-    panic::PanicInfo,
-    ptr::{self, addr_of_mut},
-};
+use core::ptr::{self, addr_of_mut};
 
+use alloc::vec::Vec;
 use bitmap32::BitMap;
 use calc::CalculatorState;
-use calc_alloc::B64Allocator;
-use calc_common::Character;
+
 use calc_keyboard::ButtonEvent;
 use cortex_m_rt::entry;
 use stm_util::{
+    enable_interrupt, enable_interrupts,
     gpio::{GPIOConfiguration, GPIOPin, GPIOPort, PinSpeed, PinType, PullUpPullDownResistor},
     i2c::{self, I2C2},
+    timer::Timer6,
+    CriticalSection,
 };
 
-#[global_allocator]
-static ALLOCATOR: B64Allocator<32> = B64Allocator::new();
+mod runtime;
 
 #[no_mangle]
 #[link_section = ".bss"]
 static mut COUNTER: u32 = 0;
-
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    const LED_PIN: GPIOPin = unsafe { GPIOPin::new_unchecked(GPIOPort::A, 7) };
-    LED_PIN.set(true);
-    loop {}
-}
 
 fn psuedo_wait() {
     unsafe {
@@ -43,6 +37,35 @@ fn psuedo_wait() {
             counter_val += 1;
         }
     }
+}
+
+static mut PENDING_BUTTONS: Vec<ButtonEvent> = Vec::new();
+
+#[no_mangle]
+unsafe extern "C" fn Tim6Interrupt() {
+    Timer6::clear_interrupt();
+
+    static mut OLD_KEYBOARD_STATE: (u8, u8) = (0, 0);
+
+    let new_state = get_row_column_state();
+
+    let event = ButtonEvent::from_keyboard_state(OLD_KEYBOARD_STATE, new_state);
+    OLD_KEYBOARD_STATE = new_state;
+
+    if let Some(event) = event {
+        PENDING_BUTTONS.insert(0, event);
+    }
+}
+
+fn pop_button_event() -> Option<ButtonEvent> {
+    let critical_section = CriticalSection::start();
+
+    // SAFE: interrupts are disabled, so Tim6Interrupt cannot have this reference at the same time as this function
+    let return_value = unsafe { &mut PENDING_BUTTONS }.pop();
+
+    critical_section.end();
+
+    return_value
 }
 
 #[entry]
@@ -92,41 +115,28 @@ fn main() -> ! {
 
     let mut state = CalculatorState::default();
     err |= !update_screen(&mut i2c2, &state.screen);
-    psuedo_wait();
 
     if !err {
         LED_PIN.set(true);
     }
 
-    let mut old_state = (0, 0);
+    stm_util::timer::Timer6::initialize();
+
+    unsafe { enable_interrupt(17) }; // Enables the TIM6 interrupt
+
     loop {
-        let new_state = get_row_column_state();
+        stm_util::disable_interrupts();
 
-        let keyboard_event = ButtonEvent::from_keyboard_state(old_state, new_state);
-        state.msg.clear();
-        for key_state in [old_state, new_state] {
-            for rc in [key_state.0, key_state.1] {
-                for bit_index in 0..5 {
-                    let bit = rc & (1 << bit_index) != 0;
-                    if bit {
-                        state.msg.push(Character::One);
-                    } else {
-                        state.msg.push(Character::Zero);
-                    }
-                }
-                state.msg.push(Character::Slash);
-            }
-            state.msg.pop();
-            state.msg.push(Character::Dot);
-        }
-        state.msg.pop();
-        old_state = new_state;
+        if let Some(event) = pop_button_event() {
+            enable_interrupts();
 
-        if let Some(event) = keyboard_event {
             if event.button_down {
                 state.on_button_press(event.button);
                 update_screen(&mut i2c2, &state.screen);
             }
+        } else {
+            stm_util::wait_for_interrupt();
+            enable_interrupts();
         }
     }
 }

@@ -12,6 +12,7 @@ version = "0.1.0"
 dependencies = [
  "bitmap32",
  "calc-common",
+ "calc-macros",
  "calc-parser",
 ]
 
@@ -20,6 +21,7 @@ name = "calc-alloc"
 version = "0.1.0"
 dependencies = [
  "bitmap32",
+ "stm-util",
 ]
 
 [[package]]
@@ -32,6 +34,10 @@ version = "0.1.0"
 dependencies = [
  "calc-common",
 ]
+
+[[package]]
+name = "calc-macros"
+version = "0.1.0"
 
 [[package]]
 name = "calc-parser"
